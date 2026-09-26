@@ -19,6 +19,8 @@ import { AiTag, EmptyState, FillBar, StatusPill, TrendArrow } from "./primitives
 import { PriorityScore } from "./PriorityScore";
 import type { MapSelection } from "./CityMap";
 
+import fallbackPhoto from "@/assets/incident-before-1.jpg";
+
 export function MarkerDetail({ selection }: { selection: MapSelection }) {
   const {
     bins,
@@ -219,12 +221,15 @@ export function MarkerDetail({ selection }: { selection: MapSelection }) {
         </div>
 
         <img
-          src={inc.photo}
+          src={inc.photo || fallbackPhoto}
           alt={`Evidence photo for ${inc.code}`}
           loading="lazy"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = fallbackPhoto;
+          }}
           width={1024}
           height={768}
-          className="h-36 w-full rounded-xl border border-slate-200 object-cover shadow-2xs"
+          className="h-36 w-full rounded-xl border border-slate-200 object-cover shadow-2xs bg-slate-100"
         />
 
         <div className="grid grid-cols-2 gap-2.5 text-xs">

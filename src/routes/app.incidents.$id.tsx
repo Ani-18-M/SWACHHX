@@ -17,6 +17,16 @@ import { PriorityScore } from "@/components/swachhx/PriorityScore";
 import { AFTER_PHOTO, useSwachhx } from "@/lib/swachhx/store";
 import { cn } from "@/lib/utils";
 
+// Local verified high-res images for each waste type
+import imgWetWaste from "@/assets/incident-wet-waste.jpg";
+import imgDryWaste from "@/assets/incident-dry-waste.jpg";
+import imgPlastic from "@/assets/incident-plastic.jpg";
+import imgMixedWaste from "@/assets/incident-before-1.jpg";
+import imgConstruction from "@/assets/incident-before-2.jpg";
+import imgOverflowBin from "@/assets/incident-before-3.jpg";
+import imgEWaste from "@/assets/incident-e-waste.jpg";
+import imgCleanStreet from "@/assets/incident-after-1.jpg";
+
 export const Route = createFileRoute("/app/incidents/$id")({
   head: () => ({
     meta: [
@@ -39,27 +49,18 @@ const PATHWAY: Record<string, string> = {
   "Mixed Waste": "Municipal mixed waste collection",
 };
 
-// High-quality Unsplash images by waste type
+// Local verified images for each waste type
 const INCIDENT_IMAGES: Record<string, string> = {
-  "Wet Waste":
-    "https://images.unsplash.com/photo-1604187351574-c75ca79f5807?w=1200&q=85&auto=format&fit=crop",
-  "Dry Waste":
-    "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=1200&q=85&auto=format&fit=crop",
-  Plastic:
-    "https://images.unsplash.com/photo-1559825481-12a05cc00344?w=1200&q=85&auto=format&fit=crop",
-  "E-waste":
-    "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&q=85&auto=format&fit=crop",
-  "Construction Waste":
-    "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=1200&q=85&auto=format&fit=crop",
-  "Mixed Waste":
-    "https://images.unsplash.com/photo-1587828372777-a8c11a9e67eb?w=1200&q=85&auto=format&fit=crop",
+  "Wet Waste": imgWetWaste,
+  "Dry Waste": imgDryWaste,
+  Plastic: imgPlastic,
+  "E-waste": imgEWaste,
+  "Construction Waste": imgConstruction,
+  "Mixed Waste": imgMixedWaste,
 };
 
-const AFTER_IMAGE =
-  "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1200&q=85&auto=format&fit=crop";
-
-const FALLBACK_IMAGE =
-  "https://images.unsplash.com/photo-1567022748528-2b359571b8d2?w=1200&q=85&auto=format&fit=crop";
+const AFTER_IMAGE = imgCleanStreet;
+const FALLBACK_IMAGE = imgCleanStreet;
 
 function MetaCell({ label, value }: { label: string; value: string }) {
   return (
@@ -88,7 +89,8 @@ function IncidentDetail() {
     );
   }
 
-  const imgSrc = INCIDENT_IMAGES[inc.wasteType] ?? FALLBACK_IMAGE;
+  const imgSrc = inc.photo || INCIDENT_IMAGES[inc.wasteType] || FALLBACK_IMAGE;
+  const afterSrc = inc.afterPhoto || AFTER_IMAGE;
 
   const factors = [
     { label: "Severity", score: inc.severity === "severe" ? 40 : inc.severity === "high" ? 34 : 22, max: 40 },
@@ -123,10 +125,13 @@ function IncidentDetail() {
       />
 
       {/* Hero evidence banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200 shadow-sm">
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 shadow-sm bg-slate-900">
         <img
           src={imgSrc}
-          alt={`${inc.wasteType} incident`}
+          alt={`${inc.code} - ${inc.wasteType} incident evidence`}
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = INCIDENT_IMAGES[inc.wasteType] || FALLBACK_IMAGE;
+          }}
           className="h-56 w-full object-cover sm:h-64"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
@@ -182,7 +187,10 @@ function IncidentDetail() {
                       src={imgSrc}
                       alt="Before cleanup"
                       loading="lazy"
-                      className="w-full rounded-xl border border-red-100 object-cover shadow-sm"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = INCIDENT_IMAGES[inc.wasteType] || FALLBACK_IMAGE;
+                      }}
+                      className="w-full h-48 rounded-xl border border-red-100 object-cover shadow-sm bg-slate-100"
                     />
                   </figure>
                   <figure>
@@ -191,10 +199,13 @@ function IncidentDetail() {
                       After
                     </figcaption>
                     <img
-                      src={AFTER_IMAGE}
+                      src={afterSrc}
                       alt="After cleanup"
                       loading="lazy"
-                      className="w-full rounded-xl border border-emerald-100 object-cover shadow-sm"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = AFTER_IMAGE;
+                      }}
+                      className="w-full h-48 rounded-xl border border-emerald-100 object-cover shadow-sm bg-slate-100"
                     />
                   </figure>
                 </div>

@@ -18,10 +18,15 @@ import { EmptyState, LiveDot, PageHeader, SimulatedTag, StatusPill } from "@/com
 import { useSwachhx } from "@/lib/swachhx/store";
 import { cn } from "@/lib/utils";
 
-// AI-generated images for each waste type
+// Local verified images for each waste type
 import imgWetWaste from "@/assets/incident-wet-waste.jpg";
 import imgDryWaste from "@/assets/incident-dry-waste.jpg";
 import imgPlastic from "@/assets/incident-plastic.jpg";
+import imgMixedWaste from "@/assets/incident-before-1.jpg";
+import imgConstruction from "@/assets/incident-before-2.jpg";
+import imgOverflowBin from "@/assets/incident-before-3.jpg";
+import imgEWaste from "@/assets/incident-e-waste.jpg";
+import imgCleanStreet from "@/assets/incident-after-1.jpg";
 
 export const Route = createFileRoute("/app/incidents/")({
   head: () => ({
@@ -46,23 +51,17 @@ const FILTERS = [
   { id: "recurring", label: "Recurring" },
 ] as const;
 
-// 3 locally generated AI images + curated Unsplash for remaining types
+// Local verified high-res images for every waste type
 const INCIDENT_IMAGES: Record<string, string> = {
-  "Wet Waste":  imgWetWaste,
-  "Dry Waste":  imgDryWaste,
-  Plastic:      imgPlastic,
-  // Specific Unsplash photos for remaining waste types
-  "E-waste":
-    "https://images.unsplash.com/photo-1683009427666-340595e57e43?w=800&q=82&auto=format&fit=crop",
-  "Construction Waste":
-    "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&q=82&auto=format&fit=crop",
-  "Mixed Waste":
-    "https://images.unsplash.com/photo-1605600659873-d808a13e4d9a?w=800&q=82&auto=format&fit=crop",
+  "Wet Waste": imgWetWaste,
+  "Dry Waste": imgDryWaste,
+  Plastic: imgPlastic,
+  "E-waste": imgEWaste,
+  "Construction Waste": imgConstruction,
+  "Mixed Waste": imgMixedWaste,
 };
 
-// Clean street — after cleanup verification
-const FALLBACK_IMAGE =
-  "https://images.unsplash.com/photo-1616400619175-5beda3a17896?w=800&q=82&auto=format&fit=crop";
+const FALLBACK_IMAGE = imgCleanStreet;
 
 const SEVERITY_META: Record<string, { bar: string; glow: string; ring: string }> = {
   severe: {
@@ -210,7 +209,7 @@ function Incidents() {
       ) : (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {rows.map((inc) => {
-            const imgSrc = INCIDENT_IMAGES[inc.wasteType] ?? FALLBACK_IMAGE;
+            const imgSrc = inc.photo || INCIDENT_IMAGES[inc.wasteType] || FALLBACK_IMAGE;
             const meta = SEVERITY_META[inc.severity] ?? SEVERITY_META.low;
             return (
               <article
@@ -221,11 +220,14 @@ function Incidents() {
                 )}
               >
                 {/* Image */}
-                <div className="relative h-44 overflow-hidden">
+                <div className="relative h-44 overflow-hidden bg-slate-100">
                   <img
                     src={imgSrc}
-                    alt={inc.wasteType}
+                    alt={`${inc.code} - ${inc.wasteType}`}
                     loading="lazy"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = INCIDENT_IMAGES[inc.wasteType] || FALLBACK_IMAGE;
+                    }}
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   {/* Gradient overlay */}

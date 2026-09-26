@@ -13,6 +13,10 @@ import { toast } from "sonner";
 import before1 from "@/assets/incident-before-1.jpg";
 import before2 from "@/assets/incident-before-2.jpg";
 import before3 from "@/assets/incident-before-3.jpg";
+import wetWaste from "@/assets/incident-wet-waste.jpg";
+import dryWaste from "@/assets/incident-dry-waste.jpg";
+import plasticWaste from "@/assets/incident-plastic.jpg";
+import eWaste from "@/assets/incident-e-waste.jpg";
 import after1 from "@/assets/incident-after-1.jpg";
 
 import {
@@ -29,13 +33,34 @@ import {
   type FeedEvent,
   type Hotspot,
   type Incident,
+  type IncidentPhotos,
   type IncidentStatus,
   type Notification,
   type SmartBin,
   type Truck,
 } from "./data";
 
-export const PHOTOS = [before1, before2, before3, after1];
+export const INCIDENT_ASSETS: IncidentPhotos = {
+  mixedWaste: before1,
+  construction: before2,
+  overflowBin: before3,
+  wetWaste: wetWaste,
+  dryWaste: dryWaste,
+  plastic: plasticWaste,
+  eWaste: eWaste,
+  afterClean: after1,
+};
+
+export const PHOTOS = [
+  before1,
+  before2,
+  before3,
+  after1,
+  wetWaste,
+  dryWaste,
+  plasticWaste,
+  eWaste,
+];
 export const AFTER_PHOTO = after1;
 
 export type Role = "admin" | "dispatch" | "worker" | "citizen";
@@ -115,7 +140,7 @@ const nextId = () => `x${++uid}`;
 
 export function SwachhxProvider({ children }: { children: ReactNode }) {
   const [bins, setBins] = useState<SmartBin[]>(() => buildBins());
-  const [incidents, setIncidents] = useState<Incident[]>(() => buildIncidents(PHOTOS));
+  const [incidents, setIncidents] = useState<Incident[]>(() => buildIncidents(INCIDENT_ASSETS));
   const [trucks, setTrucks] = useState<Truck[]>(() => buildTrucks());
   const [hotspots, setHotspots] = useState<Hotspot[]>(() => buildHotspots());
   const [collections, setCollections] = useState<CollectionRecord[]>(() => [...COLLECTION_SEED]);

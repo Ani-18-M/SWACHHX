@@ -362,7 +362,31 @@ export const CITIZENS: Citizen[] = [
   { id: "c5", name: "Citizen (You)", reports: 1, verifiedReports: 1 },
 ];
 
-export function buildIncidents(photos: string[]): Incident[] {
+export interface IncidentPhotos {
+  mixedWaste: string;
+  construction: string;
+  overflowBin: string;
+  wetWaste: string;
+  dryWaste: string;
+  plastic: string;
+  eWaste: string;
+  afterClean: string;
+}
+
+export function buildIncidents(photosInput: IncidentPhotos | string[]): Incident[] {
+  const p: IncidentPhotos = Array.isArray(photosInput)
+    ? {
+        mixedWaste: photosInput[0],
+        construction: photosInput[1] ?? photosInput[0],
+        overflowBin: photosInput[2] ?? photosInput[0],
+        wetWaste: photosInput[4] ?? photosInput[1] ?? photosInput[0],
+        dryWaste: photosInput[5] ?? photosInput[1] ?? photosInput[0],
+        plastic: photosInput[6] ?? photosInput[2] ?? photosInput[0],
+        eWaste: photosInput[7] ?? photosInput[0],
+        afterClean: photosInput[3] ?? photosInput[0],
+      }
+    : photosInput;
+
   const base: Array<Partial<Incident> & { code: string }> = [
     {
       code: "INCIDENT #104",
@@ -379,7 +403,7 @@ export function buildIncidents(photos: string[]): Incident[] {
       reportedAt: "10:42 AM",
       citizenId: "c1",
       hotspotId: "h17",
-      photo: photos[0],
+      photo: p.mixedWaste,
     },
     {
       code: "INCIDENT #103",
@@ -395,7 +419,7 @@ export function buildIncidents(photos: string[]): Incident[] {
       assignedTeam: "Field Team #08",
       reportedAt: "10:12 AM",
       citizenId: "c2",
-      photo: photos[1],
+      photo: p.overflowBin,
     },
     {
       code: "INCIDENT #102",
@@ -411,7 +435,7 @@ export function buildIncidents(photos: string[]): Incident[] {
       assignedTeam: "Field Team #04",
       reportedAt: "9:36 AM",
       citizenId: "c3",
-      photo: photos[2],
+      photo: p.plastic,
     },
     {
       code: "INCIDENT #101",
@@ -427,7 +451,7 @@ export function buildIncidents(photos: string[]): Incident[] {
       reportedAt: "9:04 AM",
       citizenId: "c4",
       hotspotId: "h21",
-      photo: photos[0],
+      photo: p.mixedWaste,
     },
     {
       code: "INCIDENT #100",
@@ -442,7 +466,7 @@ export function buildIncidents(photos: string[]): Incident[] {
       status: "verified",
       reportedAt: "8:48 AM",
       citizenId: "c2",
-      photo: photos[1],
+      photo: p.dryWaste,
     },
     {
       code: "INCIDENT #099",
@@ -459,7 +483,7 @@ export function buildIncidents(photos: string[]): Incident[] {
       reportedAt: "8:20 AM",
       citizenId: "c1",
       hotspotId: "h09",
-      photo: photos[2],
+      photo: p.construction,
     },
     {
       code: "INCIDENT #098",
@@ -476,9 +500,24 @@ export function buildIncidents(photos: string[]): Incident[] {
       reportedAt: "Yesterday 7:26 PM",
       citizenId: "c3",
       hotspotId: "h17",
-      photo: photos[0],
-      afterPhoto: photos[3],
+      photo: p.mixedWaste,
+      afterPhoto: p.afterClean,
       verified: true,
+    },
+    {
+      code: "INCIDENT #097",
+      location: "Tech Corridor, Gate 3",
+      zoneId: "z5",
+      x: 52,
+      y: 35,
+      classification: "Discarded battery & electronic components",
+      wasteType: "E-waste",
+      confidence: 88,
+      severity: "medium",
+      status: "verified",
+      reportedAt: "Yesterday 4:15 PM",
+      citizenId: "c5",
+      photo: p.eWaste,
     },
   ];
 
