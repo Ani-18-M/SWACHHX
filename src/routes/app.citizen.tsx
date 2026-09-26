@@ -45,6 +45,8 @@ import before3 from "@/assets/incident-before-3.jpg";
 import wetWasteImg from "@/assets/incident-wet-waste.jpg";
 import dryWasteImg from "@/assets/incident-dry-waste.jpg";
 import plasticImg from "@/assets/incident-plastic.jpg";
+import constructionImg from "@/assets/incident-construction.jpg";
+import eWasteImg from "@/assets/incident-e-waste.jpg";
 
 export const Route = createFileRoute("/app/citizen")({
   head: () => ({
@@ -98,7 +100,7 @@ const REPORT_TYPES: WasteCategory[] = [
     confidence: 92,
     classification: "Public smart bin perimeter overflow & organic decay",
     icon: AlertCircle,
-    defaultPhoto: wetWasteImg,
+    defaultPhoto: before2,
   },
   {
     id: "plastic",
@@ -131,7 +133,7 @@ const REPORT_TYPES: WasteCategory[] = [
     confidence: 93,
     classification: "Unauthorized C&D masonry aggregate dumping",
     icon: AlertTriangle,
-    defaultPhoto: before2,
+    defaultPhoto: constructionImg,
   },
   {
     id: "damaged_bin",
@@ -142,7 +144,7 @@ const REPORT_TYPES: WasteCategory[] = [
     confidence: 85,
     classification: "Municipal IoT asset physical casing damage",
     icon: Sparkles,
-    defaultPhoto: before3,
+    defaultPhoto: before2,
   },
 ];
 
@@ -156,10 +158,12 @@ const PATHWAY: Record<WasteType, string> = {
 };
 
 const SAMPLE_PRESETS = [
-  { label: "Mixed Waste", image: before1, typeId: "dump" },
-  { label: "Overflowing Wet", image: wetWasteImg, typeId: "overflow" },
-  { label: "Plastic Litter", image: plasticImg, typeId: "plastic" },
+  { label: "Construction Debris", image: constructionImg, typeId: "construction" },
+  { label: "Overflowing Bin", image: before2, typeId: "overflow" },
+  { label: "Mixed Waste Dump", image: before1, typeId: "dump" },
+  { label: "Plastic Bottles", image: plasticImg, typeId: "plastic" },
   { label: "Dry Packaging", image: dryWasteImg, typeId: "roadside" },
+  { label: "Wet Food Scraps", image: wetWasteImg, typeId: "overflow" },
 ];
 
 function CitizenReport() {
@@ -417,6 +421,7 @@ function CitizenReport() {
       }
     };
     reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   const handleSelectPreset = (imgUrl: string, typeId: string) => {
@@ -715,6 +720,70 @@ function CitizenReport() {
                         </button>
                       </div>
                     </>
+                  ) : capturedPhoto ? (
+                    /* Captured Photo State in Viewfinder Frame */
+                    <div className="relative size-full">
+                      <img
+                        src={capturedPhoto}
+                        alt="Captured Waste Evidence"
+                        className="size-full object-cover"
+                      />
+
+                      {/* Top Overlay Bar */}
+                      <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1 backdrop-blur-md text-emerald-400 font-semibold text-xs border border-emerald-500/40 shadow-sm">
+                          <CheckCircle2 className="size-3.5 text-emerald-400" />
+                          Photo Captured & Geotagged
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCapturedPhoto(null);
+                            stopCamera();
+                          }}
+                          className="rounded-full bg-black/60 p-1.5 text-slate-300 hover:text-white hover:bg-black/90 transition-colors backdrop-blur-md border border-white/20"
+                          title="Remove photo"
+                        >
+                          <X className="size-4" />
+                        </button>
+                      </div>
+
+                      {/* Bottom Controls Bar on Photo */}
+                      <div className="absolute bottom-3 inset-x-3 flex items-center justify-between gap-2.5 p-2.5 rounded-xl bg-black/75 backdrop-blur-md border border-white/15">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setCapturedPhoto(null);
+                              startCamera("environment");
+                            }}
+                            className="h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs"
+                          >
+                            <Camera className="size-3.5 mr-1" /> Live Cam
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => nativeCameraRef.current?.click()}
+                            className="h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs"
+                          >
+                            <RotateCcw className="size-3.5 mr-1" /> Retake
+                          </Button>
+                        </div>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => runAiInspection(capturedPhoto)}
+                          className="h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs"
+                        >
+                          AI Review <ArrowRight className="size-3.5 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
                   ) : (
                     /* Inactive Camera State */
                     <div className="p-6 text-center space-y-4 max-w-sm">
@@ -1071,6 +1140,38 @@ function CitizenReport() {
                     <span className="text-[11px] font-semibold text-slate-500">
                       Priority Score {liveIncident.priority}/100
                     </span>
+                  </div>
+                </div>
+
+                {/* Submitted Evidence Photo Preview */}
+                <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 shadow-2xs">
+                  <div className="relative size-20 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-900 shadow-inner">
+                    <img
+                      src={liveIncident.photo || capturedPhoto || currentType.defaultPhoto}
+                      alt="Submitted waste evidence"
+                      className="size-full object-cover"
+                    />
+                    <span className="absolute bottom-1 left-1 rounded bg-black/80 px-1 font-mono text-[8px] font-bold text-emerald-400">
+                      EVIDENCE
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[10px] uppercase font-bold text-emerald-700 tracking-wider">
+                      Submitted Photo Evidence
+                    </span>
+                    <h4 className="text-xs font-bold text-slate-900 truncate mt-0.5">
+                      {liveIncident.classification}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 truncate mt-0.5">{liveIncident.location}</p>
+                    <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-500">
+                      <span className="font-semibold text-emerald-700 bg-emerald-100/70 px-1.5 py-0.2 rounded">
+                        {liveIncident.wasteType}
+                      </span>
+                      <span>·</span>
+                      <span>Confidence {liveIncident.confidence}%</span>
+                      <span>·</span>
+                      <span>Logged at {liveIncident.reportedAt}</span>
+                    </div>
                   </div>
                 </div>
 

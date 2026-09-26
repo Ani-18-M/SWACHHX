@@ -22,8 +22,9 @@ import imgWetWaste from "@/assets/incident-wet-waste.jpg";
 import imgDryWaste from "@/assets/incident-dry-waste.jpg";
 import imgPlastic from "@/assets/incident-plastic.jpg";
 import imgMixedWaste from "@/assets/incident-before-1.jpg";
-import imgConstruction from "@/assets/incident-before-2.jpg";
-import imgOverflowBin from "@/assets/incident-before-3.jpg";
+import imgConstruction from "@/assets/incident-construction.jpg";
+import imgOverflowBin from "@/assets/incident-before-2.jpg";
+import imgDrainPlastic from "@/assets/incident-before-3.jpg";
 import imgEWaste from "@/assets/incident-e-waste.jpg";
 import imgCleanStreet from "@/assets/incident-after-1.jpg";
 
@@ -89,7 +90,13 @@ function IncidentDetail() {
     );
   }
 
-  const imgSrc = inc.photo || INCIDENT_IMAGES[inc.wasteType] || FALLBACK_IMAGE;
+  const imgSrc =
+    inc.photo ||
+    (inc.classification?.toLowerCase().includes("overflow") ? imgOverflowBin : null) ||
+    (inc.classification?.toLowerCase().includes("canal") || inc.classification?.toLowerCase().includes("drain") ? imgDrainPlastic : null) ||
+    (inc.classification?.toLowerCase().includes("construction") || inc.wasteType === "Construction Waste" ? imgConstruction : null) ||
+    INCIDENT_IMAGES[inc.wasteType] ||
+    FALLBACK_IMAGE;
   const afterSrc = inc.afterPhoto || AFTER_IMAGE;
 
   const factors = [

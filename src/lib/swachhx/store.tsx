@@ -18,6 +18,7 @@ import dryWaste from "@/assets/incident-dry-waste.jpg";
 import plasticWaste from "@/assets/incident-plastic.jpg";
 import eWaste from "@/assets/incident-e-waste.jpg";
 import after1 from "@/assets/incident-after-1.jpg";
+import constructionWaste from "@/assets/incident-construction.jpg";
 
 import {
   COLLECTION_SEED,
@@ -42,8 +43,8 @@ import {
 
 export const INCIDENT_ASSETS: IncidentPhotos = {
   mixedWaste: before1,
-  construction: before2,
-  overflowBin: before3,
+  construction: constructionWaste,
+  overflowBin: before2,
   wetWaste: wetWaste,
   dryWaste: dryWaste,
   plastic: plasticWaste,
@@ -60,6 +61,7 @@ export const PHOTOS = [
   dryWaste,
   plasticWaste,
   eWaste,
+  constructionWaste,
 ];
 export const AFTER_PHOTO = after1;
 
