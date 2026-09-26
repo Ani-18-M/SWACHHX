@@ -202,6 +202,7 @@ function CitizenReport() {
   // Refs
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const nativeCameraRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const currentType = REPORT_TYPES.find((t) => t.id === selectedTypeId) ?? REPORT_TYPES[0];
@@ -217,43 +218,138 @@ function CitizenReport() {
     };
   }, []);
 
-  // Real Camera Access
+  // Real Camera Access with resilient multi-constraint fallback
   const startCamera = async (facing: "environment" | "user" = cameraFacing) => {
     try {
       setIsCameraStarting(true);
       setCameraError(null);
       stopCamera();
 
-      // Check if getUserMedia is available
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Camera API is not supported in this browser environment.");
+      // Check secure context
+      if (
+        typeof window !== "undefined" &&
+        !window.isSecureContext &&
+        window.location.hostname !== "localhost" &&
+        window.location.hostname !== "127.0.0.1"
+      ) {
+        throw new Error(
+          "In-browser live video stream requires a secure HTTPS connection. Please use 'Snap with Device Camera' below or connect via HTTPS.",
+        );
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: facing,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error(
+          "Live camera stream is not supported in this browser. Please use 'Snap with Device Camera' below.",
+        );
+      }
+
+      // Progressive constraint fallback list
+      const constraintCandidates: MediaStreamConstraints[] = [
+        {
+          video: {
+            facingMode: { ideal: facing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
         },
-        audio: false,
-      });
+        {
+          video: { facingMode: { ideal: facing } },
+          audio: false,
+        },
+        {
+          video: { facingMode: facing === "environment" ? "user" : "environment" },
+          audio: false,
+        },
+        {
+          video: true,
+          audio: false,
+        },
+      ];
+
+      let stream: MediaStream | null = null;
+      let lastErr: unknown = null;
+
+      for (const constraints of constraintCandidates) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (stream) break;
+        } catch (e: unknown) {
+          lastErr = e;
+          // If explicitly denied by user, stop trying lower constraints
+          if (
+            e instanceof Error &&
+            (e.name === "NotAllowedError" || e.name === "PermissionDeniedError")
+          ) {
+            throw e;
+          }
+        }
+      }
+
+      if (!stream) {
+        throw lastErr || new Error("Could not initialize video stream");
+      }
 
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+      const video = videoRef.current;
+      if (video) {
+        video.srcObject = stream;
+        video.setAttribute("playsinline", "true");
+        video.setAttribute("webkit-playsinline", "true");
+        video.muted = true;
+        video.autoplay = true;
+
+        await new Promise<void>((resolve) => {
+          const tryPlay = () => {
+            video
+              .play()
+              .then(() => resolve())
+              .catch((playErr) => {
+                console.warn("video.play() notice:", playErr);
+                resolve();
+              });
+          };
+
+          if (video.readyState >= 2) {
+            tryPlay();
+          } else {
+            video.onloadedmetadata = tryPlay;
+            setTimeout(tryPlay, 700);
+          }
+        });
       }
+
       setCameraActive(true);
-      toast.success("Camera connected", { description: "Frame the waste in the viewfinder" });
+      toast.success("Live Camera Connected", {
+        description: "Align waste in the target grid and tap Capture",
+      });
     } catch (err: unknown) {
       console.warn("Camera access failed:", err);
       setCameraActive(false);
-      const errorMsg =
-        err instanceof Error && err.name === "NotAllowedError"
-          ? "Camera permission denied. Please allow access in browser settings or upload a photo."
-          : "Camera unavailable. You can upload an image or choose a sample photo below.";
-      setCameraError(errorMsg);
-      toast.error("Camera access unavailable", { description: errorMsg });
+
+      let msg = "Camera could not be accessed.";
+      if (
+        err instanceof Error &&
+        (err.name === "NotAllowedError" || err.name === "PermissionDeniedError")
+      ) {
+        msg =
+          "Camera permission was dismissed or blocked. You can tap 'Snap with Device Camera' below or allow camera in your browser address bar.";
+      } else if (
+        err instanceof Error &&
+        (err.name === "NotFoundError" || err.name === "DevicesNotFoundError")
+      ) {
+        msg = "No camera hardware detected. Please upload an image or choose a sample photo.";
+      } else if (
+        err instanceof Error &&
+        (err.name === "NotReadableError" || err.name === "TrackStartError")
+      ) {
+        msg = "Camera is currently locked by another application. Close background camera apps and try again.";
+      } else if (err instanceof Error && err.message) {
+        msg = err.message;
+      }
+
+      setCameraError(msg);
+      toast.error("Camera Notice", { description: msg });
     } finally {
       setIsCameraStarting(false);
     }
@@ -279,22 +375,33 @@ function CitizenReport() {
   };
 
   const capturePhoto = () => {
-    if (!videoRef.current) return;
+    const video = videoRef.current;
+    if (!video) return;
+
     try {
-      const video = videoRef.current;
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-        setCapturedPhoto(dataUrl);
-        stopCamera();
-        runAiInspection(dataUrl);
+      const width = video.videoWidth || video.clientWidth || 640;
+      const height = video.videoHeight || video.clientHeight || 480;
+
+      if (width <= 0 || height <= 0) {
+        toast.error("Camera frame not ready yet. Please wait a second and tap again.");
+        return;
       }
-    } catch {
-      toast.error("Failed to snapshot frame. Please try uploading a photo.");
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas context failed");
+
+      ctx.drawImage(video, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+
+      setCapturedPhoto(dataUrl);
+      stopCamera();
+      runAiInspection(dataUrl);
+    } catch (err) {
+      console.error("Capture snapshot failed:", err);
+      toast.error("Capture failed. You can use 'Snap with Device Camera' or upload.");
     }
   };
 
@@ -623,37 +730,73 @@ function CitizenReport() {
                       </div>
 
                       {cameraError && (
-                        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-2.5 text-left text-xs text-rose-300">
-                          <p className="flex items-center gap-1.5 font-semibold text-rose-400">
-                            <AlertTriangle className="size-3.5 shrink-0" /> Camera Notification
-                          </p>
-                          <p className="mt-0.5 text-[11px] leading-tight">{cameraError}</p>
+                        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-left text-xs text-rose-300 space-y-2">
+                          <div className="flex items-center gap-1.5 font-semibold text-rose-400">
+                            <AlertTriangle className="size-4 shrink-0" />
+                            <span>Camera Notice</span>
+                          </div>
+                          <p className="text-[11px] leading-relaxed text-slate-200">{cameraError}</p>
+                          <div className="pt-0.5">
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => nativeCameraRef.current?.click()}
+                              className="h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold"
+                            >
+                              <Camera className="size-3.5 mr-1.5" />
+                              Open Phone Camera (1-Tap Direct)
+                            </Button>
+                          </div>
                         </div>
                       )}
 
-                      <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-1">
+                      <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-2.5 pt-1 w-full">
+                        {/* 1. Direct hardware camera (100% reliable on phones/tablets) */}
                         <Button
-                          onClick={() => startCamera("environment")}
-                          disabled={isCameraStarting}
-                          className="w-full sm:w-auto rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm"
+                          type="button"
+                          onClick={() => nativeCameraRef.current?.click()}
+                          className="w-full sm:w-auto rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"
                         >
                           <Camera className="size-4 mr-2" />
-                          {isCameraStarting ? "Starting..." : "Start Camera"}
+                          Snap with Phone Camera
                         </Button>
 
+                        {/* 2. In-browser live viewfinder stream */}
                         <Button
+                          type="button"
+                          onClick={() => startCamera("environment")}
+                          disabled={isCameraStarting}
                           variant="secondary"
-                          onClick={() => fileInputRef.current?.click()}
                           className="w-full sm:w-auto rounded-xl bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
                         >
-                          <Upload className="size-4 mr-2" />
-                          Upload Photo
+                          <Eye className="size-4 mr-2" />
+                          {isCameraStarting ? "Starting..." : "Live Viewfinder"}
                         </Button>
+
+                        {/* 3. Choose from gallery / files */}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full sm:w-auto rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300"
+                        >
+                          <Upload className="size-4 mr-2" />
+                          Upload File
+                        </Button>
+
+                        {/* Hidden Native Camera & File Pickers */}
+                        <input
+                          ref={nativeCameraRef}
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
                         <input
                           ref={fileInputRef}
                           type="file"
                           accept="image/*"
-                          capture="environment"
                           onChange={handleFileUpload}
                           className="hidden"
                         />
